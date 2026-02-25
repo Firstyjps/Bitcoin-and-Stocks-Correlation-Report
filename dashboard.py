@@ -117,7 +117,7 @@ if selected_assets:
 
     # Rolling correlation section
     st.subheader(f"🔗 {rolling_window}-Day Rolling Pearson Correlation with Bitcoin")
-    st.markdown("แสดงการเปลี่ยนแปลงของความสัมพันธ์เมื่อเวลาผ่านไป (Y-Axis ล็อคที่ -1 ถึง 1)")
+    st.markdown("แสดงการเปลี่ยนแปลงของความสัมพันธ์เมื่อเวลาผ่านไป")
 
     # Daily returns for correlation calculations
     daily_returns = raw_df.pct_change().dropna()
