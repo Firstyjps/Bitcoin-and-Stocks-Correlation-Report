@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import io
 
 # Set up the Streamlit app configuration
 st.set_page_config(page_title="Bitcoin Rolling Correlation", layout="wide")
@@ -14,7 +15,6 @@ TICKERS = {
     "Gold": "GC=F",
     "S&P 500": "^GSPC",
     "NASDAQ": "^IXIC",
-    "SET50": "^N225",
 }
 
 # Mapping of time period labels to yfinance period strings
@@ -105,6 +105,38 @@ def load_data(assets, period_key):
 if selected_assets:
     pct_df, raw_df = load_data(selected_assets, selected_period)
 
+    # -----------------------------
+    # Export Data (CSV)
+    # -----------------------------
+    st.subheader("📥 Export Data")
+    st.caption("ดาวน์โหลดข้อมูลที่ใช้ใน Dashboard ออกเป็นไฟล์ CSV")
+
+    def _to_csv_bytes(df: pd.DataFrame) -> bytes:
+        buf = io.StringIO()
+        df.to_csv(buf)
+        return buf.getvalue().encode("utf-8")
+
+    col_a, col_b, col_c = st.columns(3)
+
+    with col_a:
+        st.download_button(
+            label="Download Close Prices (CSV)",
+            data=_to_csv_bytes(raw_df),
+            file_name=f"close_prices_{selected_period.replace(' ', '_').lower()}.csv",
+            mime="text/csv",
+        )
+
+    with col_b:
+        st.download_button(
+            label="Download % Returns (CSV)",
+            data=_to_csv_bytes(pct_df),
+            file_name=f"pct_returns_{selected_period.replace(' ', '_').lower()}.csv",
+            mime="text/csv",
+        )
+
+    # Rolling correlation data is computed later; create a placeholder here and fill it after computation.
+    rolling_corr_export_placeholder = st.empty()
+
     # Plot percentage returns comparison
     fig_price = px.line(
         pct_df,
@@ -129,6 +161,15 @@ if selected_assets:
         rolling_corr_df[asset] = daily_returns[asset].rolling(window=rolling_window).corr(daily_returns["Bitcoin"])
 
     rolling_corr_df = rolling_corr_df.dropna()
+
+    # Provide export for rolling correlation once it exists
+    with rolling_corr_export_placeholder.container():
+        st.download_button(
+            label="Download Rolling Correlation (CSV)",
+            data=_to_csv_bytes(rolling_corr_df),
+            file_name=f"rolling_corr_{rolling_window}d_{selected_period.replace(' ', '_').lower()}.csv",
+            mime="text/csv",
+        )
 
     if not rolling_corr_df.empty:
         fig_corr = go.Figure()
