@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 
 # Set up the Streamlit app configuration
 st.set_page_config(page_title="Bitcoin Rolling Correlation", layout="wide")
-st.title("📈 Bitcoin Rolling Correlation Dashboard")
+st.title("Bitcoin Rolling Correlation Dashboard")
 
 # Mapping of human‑readable asset names to their Yahoo Finance tickers
 TICKERS = {
@@ -30,7 +30,7 @@ PERIODS = {
 }
 
 # Sidebar configuration
-st.sidebar.header("⚙️ การตั้งค่ากราฟ")
+st.sidebar.header("การตั้งค่ากราฟ")
 
 # Allow the user to select which assets to compare against Bitcoin
 selected_assets = st.sidebar.multiselect(
