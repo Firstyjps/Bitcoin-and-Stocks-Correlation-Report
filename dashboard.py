@@ -7,7 +7,7 @@ import io
 
 # Set up the Streamlit app configuration
 st.set_page_config(page_title="Bitcoin Rolling Correlation", layout="wide")
-st.title("Bitcoin Rolling Correlation Dashboard")
+st.title("Bitcoin Correlation Dashboard")
 
 # Mapping of human‑readable asset names to their Yahoo Finance tickers
 TICKERS = {
@@ -15,6 +15,7 @@ TICKERS = {
     "Gold": "GC=F",
     "S&P 500": "^GSPC",
     "NASDAQ": "^IXIC",
+    "SET50": "^N225",
 }
 
 # Mapping of time period labels to yfinance period strings
@@ -55,9 +56,15 @@ rolling_window = st.sidebar.slider(
     step=1,
 )
 
+# Use equity trading days only (align all series to the non-Bitcoin market calendar)
+use_trading_days_only = st.sidebar.checkbox(
+    "Trading Days",
+    value=True,
+)
+
 # Cache the data loading function to avoid redundant API calls
 @st.cache_data(ttl=3600)
-def load_data(assets, period_key):
+def load_data(assets, period_key, trading_days_only: bool = True):
     """Load historical price data for Bitcoin and selected assets.
 
     Parameters
@@ -93,6 +100,24 @@ def load_data(assets, period_key):
     reverse_map = {v: k for k, v in TICKERS.items()}
     close_df = close_df.rename(columns=reverse_map)
 
+    # -------------------------------------------------
+    # Align to equity trading days (exclude BTC weekends)
+    # -------------------------------------------------
+    if trading_days_only:
+        # Use the selected non-Bitcoin assets as the trading-day calendar
+        calendar_assets = [a for a in assets if a != "Bitcoin" and a in close_df.columns]
+        if calendar_assets:
+            # Keep only dates where ALL calendar assets have prices (intersection)
+            trading_idx = close_df[calendar_assets].dropna(how="any").index
+            close_df = close_df.reindex(trading_idx)
+
+            # Bitcoin trades 24/7; forward-fill its value onto trading days
+            if "Bitcoin" in close_df.columns:
+                close_df["Bitcoin"] = close_df["Bitcoin"].ffill()
+
+            # Ensure calendar assets remain present
+            close_df = close_df.dropna(subset=calendar_assets)
+
     # Forward fill missing values and drop any remaining NaNs
     close_df = close_df.ffill().dropna()
 
@@ -103,7 +128,7 @@ def load_data(assets, period_key):
 
 # If the user has selected at least one asset, proceed to load and display data
 if selected_assets:
-    pct_df, raw_df = load_data(selected_assets, selected_period)
+    pct_df, raw_df = load_data(selected_assets, selected_period, trading_days_only=use_trading_days_only)
 
     def _to_csv_bytes(df: pd.DataFrame) -> bytes:
         buf = io.StringIO()
@@ -150,7 +175,7 @@ if selected_assets:
 
         fig_corr.update_layout(
             template="plotly_dark",
-            title=f"Rolling Correlation vs Bitcoin (Window={rolling_window} days)",
+            title=f"Bitcoin Pearson Correlation (Window={rolling_window} days)",
             xaxis_title="Date",
             yaxis_title="Correlation (-1 to 1)",
             yaxis=dict(range=[-1.1, 1.1]),
